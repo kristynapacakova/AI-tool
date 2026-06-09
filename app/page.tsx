@@ -3,9 +3,11 @@
 import { useState } from 'react';
 
 interface BrandAnalysis {
+  summary: string;
   toneOfVoice: { keywords: string[]; description: string };
   marketingAngle: { usp: string; communication: string };
   persona: { name: string; age: string; profession: string; painPoint: string; desires: string };
+  extractedClientName: string;
 }
 
 interface FunnelStructure {
@@ -25,8 +27,8 @@ type Step = 'input' | 'brand' | 'funnel' | 'materials';
 type MaterialTab = 'social' | 'email' | 'landing' | 'ads';
 
 const STEPS: { id: Step; label: string }[] = [
-  { id: 'input', label: 'Vstup' },
-  { id: 'brand', label: 'Značka' },
+  { id: 'input', label: 'Web' },
+  { id: 'brand', label: 'DNA značky' },
   { id: 'funnel', label: 'Funnel' },
   { id: 'materials', label: 'Materiály' },
 ];
@@ -90,8 +92,10 @@ export default function Home() {
   const [loadingMsg, setLoadingMsg] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<MaterialTab>('social');
+
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [additionalContext, setAdditionalContext] = useState('');
   const [clientName, setClientName] = useState('');
-  const [businessDesc, setBusinessDesc] = useState('');
   const [brand, setBrand] = useState<BrandAnalysis | null>(null);
   const [funnel, setFunnel] = useState<FunnelStructure | null>(null);
   const [materials, setMaterials] = useState<MarketingMaterials | null>(null);
@@ -107,15 +111,25 @@ export default function Home() {
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = await callApi<BrandAnalysis>('/api/analyze', { clientName, businessDescription: businessDesc }, 'Analyzuji značku...');
-      setBrand(data); setStep('brand');
+      const data = await callApi<BrandAnalysis>(
+        '/api/analyze',
+        { websiteUrl, additionalContext, clientName },
+        'Načítám web a analyzuji značku...'
+      );
+      setBrand(data);
+      if (!clientName) setClientName(data.extractedClientName);
+      setStep('brand');
     } catch (err) { setError(err instanceof Error ? err.message : 'Chyba'); }
     finally { setLoading(false); }
   };
 
   const handleFunnel = async () => {
     try {
-      const data = await callApi<FunnelStructure>('/api/funnel', { clientName, businessDescription: businessDesc, brand }, 'Navrhuji funnel strukturu...');
+      const data = await callApi<FunnelStructure>(
+        '/api/funnel',
+        { clientName, businessDescription: brand?.summary ?? websiteUrl, brand },
+        'Navrhuji funnel strukturu...'
+      );
       setFunnel(data); setStep('funnel');
     } catch (err) { setError(err instanceof Error ? err.message : 'Chyba'); }
     finally { setLoading(false); }
@@ -123,7 +137,11 @@ export default function Home() {
 
   const handleMaterials = async () => {
     try {
-      const data = await callApi<MarketingMaterials>('/api/materials', { clientName, businessDescription: businessDesc, brand, funnel }, 'Generuji marketingové materiály...');
+      const data = await callApi<MarketingMaterials>(
+        '/api/materials',
+        { clientName, businessDescription: brand?.summary ?? websiteUrl, brand, funnel },
+        'Generuji marketingové materiály...'
+      );
       setMaterials(data); setStep('materials'); setActiveTab('social');
     } catch (err) { setError(err instanceof Error ? err.message : 'Chyba'); }
     finally { setLoading(false); }
@@ -131,8 +149,10 @@ export default function Home() {
 
   const handleReset = () => {
     setStep('input'); setBrand(null); setFunnel(null); setMaterials(null);
-    setClientName(''); setBusinessDesc(''); setError(null);
+    setWebsiteUrl(''); setAdditionalContext(''); setClientName(''); setError(null);
   };
+
+  const displayName = clientName || brand?.extractedClientName || websiteUrl;
 
   return (
     <main className="min-h-screen bg-[#050811] relative">
@@ -152,7 +172,7 @@ export default function Home() {
             Marketing{' '}
             <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">AI Stratég</span>
           </h1>
-          <p className="text-white/40 text-sm">Kompletní brand &amp; funnel analýza poháněná AI</p>
+          <p className="text-white/40 text-sm">Zadejte URL – AI načte web a vytvoří kompletní brand &amp; marketing strategii</p>
         </header>
 
         <StepIndicator current={step} />
@@ -163,36 +183,76 @@ export default function Home() {
           </div>
         )}
 
-        {/* STEP 1 – INPUT */}
+        {/* STEP 1 – URL INPUT */}
         {step === 'input' && (
           <form onSubmit={handleAnalyze} className="glass-card p-8 flex flex-col gap-6 animate-fade-in">
             <div>
-              <h2 className="text-xl font-bold text-white mb-1">Nový klient</h2>
-              <p className="text-white/40 text-sm">Zadejte informace o byznysu klienta</p>
+              <h2 className="text-xl font-bold text-white mb-1">Web klienta</h2>
+              <p className="text-white/40 text-sm">AI web načte, analyzuje obsah a vytvoří DNA značky</p>
             </div>
+
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-white/70">Název klienta / projektu</label>
-              <input className="input-field" placeholder="např. Kavárna U Modrého koně" value={clientName} onChange={(e) => setClientName(e.target.value)} required />
+              <label className="text-sm font-medium text-white/70">URL webu klienta</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-sm">https://</span>
+                <input
+                  className="input-field pl-16"
+                  placeholder="domovniguru.cz"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  required
+                />
+              </div>
             </div>
+
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-white/70">Popis byznysu / nápadu</label>
-              <textarea
-                className="input-field resize-none" rows={7}
-                placeholder="Popište co nejdetailněji byznys klienta: co prodává, pro koho, jaký problém řeší, region / online, cenová hladina, co ho odlišuje od konkurence..."
-                value={businessDesc} onChange={(e) => setBusinessDesc(e.target.value)} required
+              <label className="text-sm font-medium text-white/70">
+                Název klienta <span className="text-white/30">(nepovinné – auto-detekce z domeny)</span>
+              </label>
+              <input
+                className="input-field"
+                placeholder="např. Domovni Guru"
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
               />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full">Analyzovat značku →</button>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-white/70">
+                Doplňující kontext <span className="text-white/30">(nepovinné)</span>
+              </label>
+              <textarea
+                className="input-field resize-none" rows={3}
+                placeholder="např. klient chce cílit na Prahu, má rozpočet 50 000 Kč/měsíc na reklamu..."
+                value={additionalContext}
+                onChange={(e) => setAdditionalContext(e.target.value)}
+              />
+            </div>
+
+            <button type="submit" disabled={loading} className="btn-primary w-full">
+              🔍 Načíst web a analyzovat značku →
+            </button>
           </form>
         )}
 
-        {/* STEP 2 – BRAND */}
+        {/* STEP 2 – BRAND DNA */}
         {step === 'brand' && brand && (
           <div className="flex flex-col gap-5 animate-fade-in">
             <div className="flex items-center justify-between">
-              <div><h2 className="text-xl font-bold text-white">{clientName}</h2><p className="text-sm text-white/40">Brand analýza</p></div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{displayName}</h2>
+                <p className="text-sm text-white/40">DNA značky – extrahováno z webu</p>
+              </div>
               <button onClick={() => setStep('input')} className="text-sm text-white/40 hover:text-white transition-colors">← Zpět</button>
             </div>
+
+            {brand.summary && (
+              <div className="glass-card p-4 flex items-start gap-3">
+                <span className="text-lg">🌐</span>
+                <p className="text-white/70 text-sm leading-relaxed">{brand.summary}</p>
+              </div>
+            )}
+
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-4"><span className="text-xl">🎯</span><h3 className="font-bold text-white">Tone of Voice</h3></div>
               <div className="flex flex-wrap gap-2 mb-3">
@@ -202,22 +262,24 @@ export default function Home() {
               </div>
               <p className="text-white/70 text-sm leading-relaxed">{brand.toneOfVoice.description}</p>
             </div>
+
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-4"><span className="text-xl">⚡</span><h3 className="font-bold text-white">Marketingový úhel</h3></div>
               <p className="text-white font-semibold mb-2">{brand.marketingAngle.usp}</p>
               <p className="text-white/70 text-sm leading-relaxed">{brand.marketingAngle.communication}</p>
             </div>
+
             <div className="glass-card p-6">
               <div className="flex items-center gap-2 mb-4"><span className="text-xl">👤</span><h3 className="font-bold text-white">Ideální persona</h3></div>
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                {[['Jméno', brand.persona.name], ['Věk', brand.persona.age]].map(([label, val]) => (
+              <div className="grid grid-cols-2 gap-3">
+                {([['Jméno', brand.persona.name], ['Věk', brand.persona.age]] as [string, string][]).map(([label, val]) => (
                   <div key={label}>
                     <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{label}</p>
                     <p className="text-white text-sm font-medium">{val}</p>
                   </div>
                 ))}
                 <div className="col-span-2">
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Provolání</p>
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Povolání</p>
                   <p className="text-white text-sm font-medium">{brand.persona.profession}</p>
                 </div>
                 <div className="col-span-2">
@@ -230,6 +292,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
             <button onClick={handleFunnel} disabled={loading} className="btn-primary w-full">Schválit a navrhnout funnel →</button>
           </div>
         )}
@@ -238,7 +301,7 @@ export default function Home() {
         {step === 'funnel' && funnel && (
           <div className="flex flex-col gap-5 animate-fade-in">
             <div className="flex items-center justify-between">
-              <div><h2 className="text-xl font-bold text-white">{clientName}</h2><p className="text-sm text-white/40">Funnel struktura</p></div>
+              <div><h2 className="text-xl font-bold text-white">{displayName}</h2><p className="text-sm text-white/40">Funnel struktura</p></div>
               <button onClick={() => setStep('brand')} className="text-sm text-white/40 hover:text-white transition-colors">← Zpět</button>
             </div>
             <div className="glass-card p-6">
@@ -272,7 +335,7 @@ export default function Home() {
                 <span className="text-xs font-semibold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">BOFU – Konverze</span>
               </div>
               <div className="flex flex-col gap-3">
-                {[['CTA', funnel.bofu.cta], ['Nabídka', funnel.bofu.offer], ['Urgence / Důvěra', funnel.bofu.urgency]].map(([label, val]) => (
+                {([['CTA', funnel.bofu.cta], ['Nabídka', funnel.bofu.offer], ['Urgence / Důvěra', funnel.bofu.urgency]] as [string, string][]).map(([label, val]) => (
                   <div key={label}>
                     <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{label}</p>
                     <p className="text-white/80 text-sm">{val}</p>
@@ -288,7 +351,7 @@ export default function Home() {
         {step === 'materials' && materials && (
           <div className="flex flex-col gap-5 animate-fade-in">
             <div className="flex items-center justify-between">
-              <div><h2 className="text-xl font-bold text-white">{clientName}</h2><p className="text-sm text-white/40">Marketingové materiály</p></div>
+              <div><h2 className="text-xl font-bold text-white">{displayName}</h2><p className="text-sm text-white/40">Marketingové materiály</p></div>
               <button onClick={() => setStep('funnel')} className="text-sm text-white/40 hover:text-white transition-colors">← Zpět</button>
             </div>
             <div className="flex gap-1 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
@@ -306,49 +369,32 @@ export default function Home() {
               <div className="flex flex-col gap-4">
                 {materials.socialPosts.map((post, i) => (
                   <div key={i} className="glass-card p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-white/50">Post {i + 1}</span>
-                      <CopyButton text={post} />
-                    </div>
+                    <div className="flex items-center justify-between mb-3"><span className="text-xs font-semibold text-white/50">Post {i + 1}</span><CopyButton text={post} /></div>
                     <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">{post}</p>
                   </div>
                 ))}
               </div>
             )}
-
             {activeTab === 'email' && (
               <div className="glass-card p-6 flex flex-col gap-4">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-white/40 uppercase tracking-wider">Předmět</p>
-                    <CopyButton text={materials.emailSequence.subject} />
-                  </div>
+                  <div className="flex items-center justify-between mb-1"><p className="text-xs text-white/40 uppercase tracking-wider">Předmět</p><CopyButton text={materials.emailSequence.subject} /></div>
                   <p className="text-white font-semibold">{materials.emailSequence.subject}</p>
                 </div>
                 <div className="h-px bg-white/5" />
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-white/40 uppercase tracking-wider">Text e-mailu</p>
-                    <CopyButton text={materials.emailSequence.body} />
-                  </div>
+                  <div className="flex items-center justify-between mb-2"><p className="text-xs text-white/40 uppercase tracking-wider">Text e-mailu</p><CopyButton text={materials.emailSequence.body} /></div>
                   <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">{materials.emailSequence.body}</p>
                 </div>
               </div>
             )}
-
             {activeTab === 'landing' && (
               <div className="glass-card p-6 flex flex-col gap-5">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-white/40 uppercase tracking-wider">Hlavní nadpis</p>
-                    <CopyButton text={materials.landingPage.headline} />
-                  </div>
+                  <div className="flex items-center justify-between mb-1"><p className="text-xs text-white/40 uppercase tracking-wider">Hlavní nadpis</p><CopyButton text={materials.landingPage.headline} /></div>
                   <p className="text-2xl font-bold text-white">{materials.landingPage.headline}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Podnadpis</p>
-                  <p className="text-white/70">{materials.landingPage.subheadline}</p>
-                </div>
+                <div><p className="text-xs text-white/40 uppercase tracking-wider mb-1">Podnadpis</p><p className="text-white/70">{materials.landingPage.subheadline}</p></div>
                 <div>
                   <p className="text-xs text-white/40 uppercase tracking-wider mb-2">CTA tlačítko</p>
                   <span className="inline-block bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl">{materials.landingPage.cta}</span>
@@ -363,21 +409,16 @@ export default function Home() {
                 </div>
               </div>
             )}
-
             {activeTab === 'ads' && (
               <div className="flex flex-col gap-4">
                 {materials.adCopy.map((ad, i) => (
                   <div key={i} className="glass-card p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold text-white/50">Reklama {i + 1}</span>
-                      <CopyButton text={ad} />
-                    </div>
+                    <div className="flex items-center justify-between mb-3"><span className="text-xs font-semibold text-white/50">Reklama {i + 1}</span><CopyButton text={ad} /></div>
                     <p className="text-sm text-white/80 leading-relaxed">{ad}</p>
                   </div>
                 ))}
               </div>
             )}
-
             <button onClick={handleReset} className="btn-primary w-full mt-2">+ Nový klient</button>
           </div>
         )}

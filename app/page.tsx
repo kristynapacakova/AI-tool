@@ -16,7 +16,7 @@ type Category =
 
 type AppState = 'form' | 'loading' | 'results';
 
-interface FormData {
+interface FunnelFormData {
   businessName: string;
   category: Category;
   description: string;
@@ -41,7 +41,7 @@ interface FunnelContent {
   };
 }
 
-// ─── Category config ──────────────────────────────────────────────────────────
+// ─── Category config ─────────────────────────────────────────────────────────
 
 const CATEGORIES: { value: Category; label: string; icon: string }[] = [
   { value: 'eshop', label: 'E-shop / Maloobchod', icon: '🛍️' },
@@ -54,9 +54,9 @@ const CATEGORIES: { value: Category; label: string; icon: string }[] = [
   { value: 'zdravotnictvi', label: 'Zdravotnictví / Zdraví', icon: '❤️' },
 ];
 
-// ─── Content generator ────────────────────────────────────────────────────────
+// ─── Content generator ───────────────────────────────────────────────────────
 
-function generateContent(data: FormData): FunnelContent {
+function generateContent(data: FunnelFormData): FunnelContent {
   const templates: Record<Category, FunnelContent> = {
     eshop: {
       awareness: {
@@ -153,7 +153,7 @@ function generateContent(data: FormData): FunnelContent {
         headline: `${data.businessName} – investujte do sebe, výsledky přijdou`,
         socialPost: `📚 Chcete se naučit ${data.description}? ${data.businessName} nabízí kurzy pro ${data.targetAudience}. Přes 1 000 spokojených absolventů! Zapište se ještě dnes. #vzdělávání #kurzy`,
         adCopy: [
-          `${data.businessName}: Vzdělávání, které otvírá dveře`,
+          `${data.businessName}: Vzdělávání, které otevírá dveře`,
           `Online i prezenčně | Certifikát | Praktické dovednosti`,
           `97 % absolventů doporučuje dál – zjistěte proč`,
         ],
@@ -220,7 +220,7 @@ function generateContent(data: FormData): FunnelContent {
       },
       interest: {
         emailSubject: `Jak ${data.businessName} pomohl firmám jako je ta vaše`,
-        emailBody: `Dobrý den,\n\nDěkujeme za zájem o ${data.description}. V ${data.businessName} jsme pomohli stovkám firem zefektivnit jejich procesy.\n\nNaše řešení nabízí:\n• Snadnou integraci se stávajícími systémy\n• Škálovatelnost podle vašich potřeb\n• Dedikovaný tým podpory\n\nDomluváme si bezplatné demo?\n\nTým ${data.businessName}`,
+        emailBody: `Dobrý den,\n\nDěkujeme za zájem o ${data.description}. V ${data.businessName} jsme pomohli stovkám firem zefektivnit jejich procesy.\n\nNaše řešení nabízí:\n• Snadnou integraci se stávajícími systémy\n• Škálovatelnost podle vašich potřeb\n• Dedikovaný tým podpory\n\nDomluvíme si bezplatné demo?\n\nTým ${data.businessName}`,
         blogTopics: [
           `Jak ${data.description} ušetří vaší firmě 10 hodin týdně`,
           `Případová studie: Firma zvýšila obrat o 40 % díky ${data.businessName}`,
@@ -341,7 +341,7 @@ function CopyButton({ text }: { text: string }) {
       {copied ? (
         <><span>✓</span> Zkopírováno</>
       ) : (
-        <><span>⎘</span> Kopírovat</>
+        <><span>⌘</span> Kopírovat</>
       )}
     </button>
   );
@@ -394,7 +394,7 @@ function AwarenessCard({ data }: { data: FunnelContent['awareness'] }) {
       </div>
       <div className="h-px bg-white/5" />
       <TextBlock label="Hlavní nadpis" value={data.headline} />
-      <TextBlock label="Příspěvek na sociální sítě" value={data.socialPost} />
+      <TextBlock label="Příspěvek na sociální síti" value={data.socialPost} />
       <ListBlock label="Reklamní texty (3 varianty)" items={data.adCopy} />
     </div>
   );
@@ -458,7 +458,7 @@ function ConversionCard({ data }: { data: FunnelContent['conversion'] }) {
 export default function Home() {
   const [appState, setAppState] = useState<AppState>('form');
   const [loadingStep, setLoadingStep] = useState(0);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<FunnelFormData>({
     businessName: '',
     category: 'eshop',
     description: '',
@@ -548,7 +548,7 @@ export default function Home() {
                     className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 text-left ${
                       formData.category === cat.value
                         ? 'bg-violet-600/20 border-violet-500/50 text-white'
-                        : 'bg-white/3 border-white/8 text-white/60 hover:bg-white/6 hover:border-white/15'
+                        : 'bg-white/[0.03] border-white/[0.08] text-white/60 hover:bg-white/[0.06] hover:border-white/[0.15]'
                     }`}
                   >
                     <span className="text-base">{cat.icon}</span>

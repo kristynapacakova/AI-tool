@@ -1,5 +1,5 @@
 {
-  "name": "marketing-funnel-generator",
+  "name": "vibe-business-platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"

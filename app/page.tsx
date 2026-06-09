@@ -1,666 +1,384 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type Category =
-  | 'eshop'
-  | 'restaurace'
-  | 'fitness'
-  | 'vzdelavani'
-  | 'reality'
-  | 'it'
-  | 'kosmetika'
-  | 'zdravotnictvi';
-
-type AppState = 'form' | 'loading' | 'results';
-
-interface FunnelFormData {
-  businessName: string;
-  category: Category;
-  description: string;
-  targetAudience: string;
+interface BrandAnalysis {
+  toneOfVoice: { keywords: string[]; description: string };
+  marketingAngle: { usp: string; communication: string };
+  persona: { name: string; age: string; profession: string; painPoint: string; desires: string };
 }
 
-interface FunnelContent {
-  awareness: {
-    headline: string;
-    socialPost: string;
-    adCopy: string[];
-  };
-  interest: {
-    emailSubject: string;
-    emailBody: string;
-    blogTopics: string[];
-  };
-  conversion: {
-    cta: string;
-    landingHeadline: string;
-    valuePropositions: string[];
-  };
+interface FunnelStructure {
+  tofu: { type: string; title: string; description: string; format: string };
+  mofu: { type: string; sequence: string[]; goal: string };
+  bofu: { cta: string; offer: string; urgency: string };
 }
 
-// ─── Category config ─────────────────────────────────────────────────────────
+interface MarketingMaterials {
+  socialPosts: string[];
+  emailSequence: { subject: string; body: string };
+  landingPage: { headline: string; subheadline: string; cta: string; benefits: string[] };
+  adCopy: string[];
+}
 
-const CATEGORIES: { value: Category; label: string; icon: string }[] = [
-  { value: 'eshop', label: 'E-shop / Maloobchod', icon: '🛍️' },
-  { value: 'restaurace', label: 'Restaurace / Kavárna', icon: '🍽️' },
-  { value: 'fitness', label: 'Fitness / Wellness', icon: '💪' },
-  { value: 'vzdelavani', label: 'Vzdělávání / Kurzy', icon: '📚' },
-  { value: 'reality', label: 'Reality / Nemovitosti', icon: '🏠' },
-  { value: 'it', label: 'IT / Software', icon: '💻' },
-  { value: 'kosmetika', label: 'Kosmetika / Krása', icon: '✨' },
-  { value: 'zdravotnictvi', label: 'Zdravotnictví / Zdraví', icon: '❤️' },
+type Step = 'input' | 'brand' | 'funnel' | 'materials';
+type MaterialTab = 'social' | 'email' | 'landing' | 'ads';
+
+const STEPS: { id: Step; label: string }[] = [
+  { id: 'input', label: 'Vstup' },
+  { id: 'brand', label: 'Značka' },
+  { id: 'funnel', label: 'Funnel' },
+  { id: 'materials', label: 'Materiály' },
 ];
 
-// ─── Content generator ───────────────────────────────────────────────────────
-
-function generateContent(data: FunnelFormData): FunnelContent {
-  const templates: Record<Category, FunnelContent> = {
-    eshop: {
-      awareness: {
-        headline: `Objevte ${data.businessName} – nakupujte chytře, žijte lépe`,
-        socialPost: `🛍️ Hledáte ${data.description}? ${data.businessName} nabízí to nejlepší za skvělé ceny. Sledujte nás a jako první zjistěte o nových produktech a akcích! #nakupování #kvalita`,
-        adCopy: [
-          `${data.businessName}: Váš oblíbený e-shop pro ${data.targetAudience}`,
-          `Tisíce spokojených zákazníků – nakupte ještě dnes!`,
-          `Doprava zdarma od 999 Kč | Vrácení zboží 30 dní zdarma`,
-        ],
-      },
-      interest: {
-        emailSubject: `${data.businessName}: Speciální nabídka připravena jen pro vás`,
-        emailBody: `Dobrý den,\n\nDěkujeme, že sledujete ${data.businessName}. Připravili jsme pro vás exkluzivní výběr ${data.description}.\n\nJako náš věrný zákazník získáte:\n• Slevu 10 % na první nákup\n• Prioritní dopravu zdarma\n• Přístup k limitovaným kolekcím před ostatními\n\nNabídka platí pouze 48 hodin.\n\nS pozdravem,\nTým ${data.businessName}`,
-        blogTopics: [
-          `Top 10 důvodů, proč si vybrat ${data.description}`,
-          `Průvodce výběrem: Co hledat při nákupu ${data.description}`,
-          `Recenze zákazníků: Nejoblíbenější produkty ${data.businessName}`,
-        ],
-      },
-      conversion: {
-        cta: `Nakoupit nyní se slevou 10 %`,
-        landingHeadline: `${data.businessName} – ${data.description} pro ${data.targetAudience}`,
-        valuePropositions: [
-          `Garantovaná kvalita nebo vrácení peněz`,
-          `Doprava do 24 hodin`,
-          `Zákaznická podpora 7 dní v týdnu`,
-          `Bezpečná platba – SSL šifrování`,
-        ],
-      },
-    },
-    restaurace: {
-      awareness: {
-        headline: `${data.businessName} – chuť, která se vrací`,
-        socialPost: `🍽️ Hledáte perfektní místo pro ${data.description}? ${data.businessName} vás zve na nezapomenutelný gastronomický zážitek! Rezervujte stůl ještě dnes. #jídlo #gastronomie`,
-        adCopy: [
-          `${data.businessName}: Autentická kuchyně pro ${data.targetAudience}`,
-          `Čerstvé suroviny, tradiční recepty, nezapomenutelná atmosféra`,
-          `Online rezervace | Soukromé akce | Catering`,
-        ],
-      },
-      interest: {
-        emailSubject: `Zarezervujte stůl v ${data.businessName} – máme pro vás překvapení`,
-        emailBody: `Dobrý den,\n\nDěkujeme za zájem o ${data.businessName}. Nabízíme vám ${data.description} v přátelské atmosféře.\n\nNovinky tohoto měsíce:\n• Nové sezónní menu\n• Víkendový brunch 10:00–14:00\n• Privátní akce a oslavy až pro 80 hostů\n\nTěšíme se na vaši návštěvu!\nTým ${data.businessName}`,
-        blogTopics: [
-          `Příběh za kuchyní ${data.businessName}: Kde se rodí naše recepty`,
-          `5 tipů, jak si vybrat restauraci pro firemní večeři`,
-          `Sezónní menu: Proč čerstvé suroviny mění vše`,
-        ],
-      },
-      conversion: {
-        cta: `Rezervovat stůl online – okamžitě`,
-        landingHeadline: `${data.businessName} – ${data.description} v srdci města`,
-        valuePropositions: [
-          `Online rezervace za 2 minuty`,
-          `Flexibilní kapacita pro skupiny 2–80 osob`,
-          `Vegetariánské a bezlepkové možnosti`,
-          `Parkování zdarma`,
-        ],
-      },
-    },
-    fitness: {
-      awareness: {
-        headline: `${data.businessName} – změňte svůj život, začněte dnes`,
-        socialPost: `💪 Připraveni na změnu? ${data.businessName} nabízí ${data.description} pro ${data.targetAudience}. První trénink ZDARMA! Začněte svou cestu za lepším zdravím. #fitness #zdraví`,
-        adCopy: [
-          `${data.businessName}: Profesionální ${data.description} pro každého`,
-          `Certifikovaní trenéři | Moderní vybavení | Flexibilní rozvrh`,
-          `Zkuste to zdarma – první lekce bez závazků!`,
-        ],
-      },
-      interest: {
-        emailSubject: `Váš osobní fitness plán od ${data.businessName}`,
-        emailBody: `Dobrý den,\n\nDěkujeme, že jste nás kontaktovali ohledně ${data.description}. V ${data.businessName} věříme, že každý má právo na zdravý a aktivní životní styl.\n\nPřipravíme pro vás:\n• Individuální tréninkový plán\n• Nutriční poradenství zdarma\n• Měření výsledků každý měsíc\n\nPrvní konzultace je na nás!\n\nS přáním pevného zdraví,\nTým ${data.businessName}`,
-        blogTopics: [
-          `Jak začít s ${data.description}: Průvodce pro začátečníky`,
-          `10 cvičení, která změnila životy našich klientů`,
-          `Výživa a ${data.description}: Co jíst před a po tréninku`,
-        ],
-      },
-      conversion: {
-        cta: `Začít zdarma – registrovat se nyní`,
-        landingHeadline: `${data.businessName} – dosáhněte svých cílů s ${data.description}`,
-        valuePropositions: [
-          `První lekce zcela zdarma`,
-          `Certifikovaní instruktoři`,
-          `Výsledky garantovány nebo vrácení peněz`,
-          `Flexibilní členství bez roční vázanosti`,
-        ],
-      },
-    },
-    vzdelavani: {
-      awareness: {
-        headline: `${data.businessName} – investujte do sebe, výsledky přijdou`,
-        socialPost: `📚 Chcete se naučit ${data.description}? ${data.businessName} nabízí kurzy pro ${data.targetAudience}. Přes 1 000 spokojených absolventů! Zapište se ještě dnes. #vzdělávání #kurzy`,
-        adCopy: [
-          `${data.businessName}: Vzdělávání, které otevírá dveře`,
-          `Online i prezenčně | Certifikát | Praktické dovednosti`,
-          `97 % absolventů doporučuje dál – zjistěte proč`,
-        ],
-      },
-      interest: {
-        emailSubject: `Váš bezplatný průvodce k ${data.description}`,
-        emailBody: `Dobrý den,\n\nPřipravili jsme pro vás bezplatného průvodce ke kurzu ${data.description} v ${data.businessName}.\n\nCo se naučíte:\n• Základní i pokročilé techniky\n• Praktické projekty z reálného světa\n• Mentoring od expertů z praxe\n\nStáhněte si průvodce zdarma a začněte ještě dnes!\n\nTým ${data.businessName}`,
-        blogTopics: [
-          `Proč ${data.description} je dovednost budoucnosti`,
-          `Příběhy úspěchu: Absolventi ${data.businessName} mění svět`,
-          `Online vs. prezenční kurz: Co je pro vás lepší?`,
-        ],
-      },
-      conversion: {
-        cta: `Zapsat se na kurz – místa ubývají`,
-        landingHeadline: `${data.businessName} – zvládněte ${data.description} za 8 týdnů`,
-        valuePropositions: [
-          `Certifikát uznávaný zaměstnavateli`,
-          `Doživotní přístup k materiálům`,
-          `Mentoring od praktiků z oboru`,
-          `Garance vrácení peněz do 14 dní`,
-        ],
-      },
-    },
-    reality: {
-      awareness: {
-        headline: `${data.businessName} – váš vysněný domov na dosah ruky`,
-        socialPost: `🏠 Hledáte ${data.description}? ${data.businessName} pomáhá ${data.targetAudience} najít vysněné bydlení. Prohlédněte si naši nabídku a domluvte si bezplatnou konzultaci! #reality #bydlení`,
-        adCopy: [
-          `${data.businessName}: Realitní partner, kterému věříte`,
-          `Stovky úspěšných transakcí | Kompletní servis | Bez starostí`,
-          `Bezplatná konzultace | Férové podmínky | Transparentnost`,
-        ],
-      },
-      interest: {
-        emailSubject: `Nové nemovitosti odpovídající vašim kritériím`,
-        emailBody: `Dobrý den,\n\nNa základě vašich požadavků na ${data.description} jsme pro vás vybrali nejlepší nabídky na trhu.\n\nProč ${data.businessName}:\n• Přes 200 nemovitostí v aktuální nabídce\n• Právní podpora zdarma\n• Průvodce celým procesem koupě i prodeje\n\nRádi se s vámi setkáme na bezplatné konzultaci.\n\nTým ${data.businessName}`,
-        blogTopics: [
-          `Průvodce koupí ${data.description}: Na co si dát pozor`,
-          `Jak správně ocenit nemovitost v roce 2025`,
-          `Hypoték se nemusíte bát: Kompletní průvodce`,
-        ],
-      },
-      conversion: {
-        cta: `Domluvit bezplatnou konzultaci`,
-        landingHeadline: `${data.businessName} – najděte ${data.description} bez starostí`,
-        valuePropositions: [
-          `Bezplatná konzultace bez závazků`,
-          `Právní podpora v ceně`,
-          `Provize jen při úspěšném prodeji`,
-          `Průvodce od prvního kontaktu po předání klíčů`,
-        ],
-      },
-    },
-    it: {
-      awareness: {
-        headline: `${data.businessName} – technologie, které skutečně fungují`,
-        socialPost: `💻 Potřebujete ${data.description}? ${data.businessName} pomáhá ${data.targetAudience} digitalizovat a automatizovat procesy. Ušetřete čas i peníze! #technologie #digitalizace`,
-        adCopy: [
-          `${data.businessName}: IT řešení na míru pro váš byznys`,
-          `Rychlá implementace | Podpora 24/7 | Plná škálovatelnost`,
-          `Bezplatné demo | Bez dlouhodobé vázanosti`,
-        ],
-      },
-      interest: {
-        emailSubject: `Jak ${data.businessName} pomohl firmám jako je ta vaše`,
-        emailBody: `Dobrý den,\n\nDěkujeme za zájem o ${data.description}. V ${data.businessName} jsme pomohli stovkám firem zefektivnit jejich procesy.\n\nNaše řešení nabízí:\n• Snadnou integraci se stávajícími systémy\n• Škálovatelnost podle vašich potřeb\n• Dedikovaný tým podpory\n\nDomluvíme si bezplatné demo?\n\nTým ${data.businessName}`,
-        blogTopics: [
-          `Jak ${data.description} ušetří vaší firmě 10 hodin týdně`,
-          `Případová studie: Firma zvýšila obrat o 40 % díky ${data.businessName}`,
-          `Digitalizace malého podniku: Kde začít?`,
-        ],
-      },
-      conversion: {
-        cta: `Vyzkoušet demo zdarma – 30 dní`,
-        landingHeadline: `${data.businessName} – ${data.description} pro moderní firmy`,
-        valuePropositions: [
-          `30denní bezplatné vyzkoušení`,
-          `Implementace do 48 hodin`,
-          `SLA 99,9 % dostupnost`,
-          `Integrace s 200+ nástroji`,
-        ],
-      },
-    },
-    kosmetika: {
-      awareness: {
-        headline: `${data.businessName} – krása, která inspiruje a vydrží`,
-        socialPost: `✨ Toužíte po ${data.description}? ${data.businessName} nabízí profesionální péči pro ${data.targetAudience}. Výsledky, které mluví za vše. Objednejte se online! #kosmetika #krása`,
-        adCopy: [
-          `${data.businessName}: Profesionální ${data.description} s certifikovanými specialisty`,
-          `Prémiové produkty | Individuální přístup | Viditelné výsledky`,
-          `První ošetření se slevou 20 % – objednejte se online`,
-        ],
-      },
-      interest: {
-        emailSubject: `${data.businessName}: Speciální péče připravena jen pro vás`,
-        emailBody: `Dobrý den,\n\nDěkujeme za zájem o ${data.description}. V ${data.businessName} věříme, že každý si zaslouží vypadat a cítit se skvěle.\n\nNaše speciality:\n• Individuální konzultace zdarma\n• Prémiové značky produktů\n• Věrnostní program s exkluzivními výhodami\n\nObjednejte se a uplatněte slevu 20 % na první ošetření!\n\nTým ${data.businessName}`,
-        blogTopics: [
-          `Průvodce ${data.description}: Mýty a fakta`,
-          `5 tipů jak pečovat o pleť doma mezi ošetřeními`,
-          `Jak vybrat správnou kosmetiku pro váš typ pleti`,
-        ],
-      },
-      conversion: {
-        cta: `Objednat se online – volné termíny`,
-        landingHeadline: `${data.businessName} – ${data.description} pro ${data.targetAudience}`,
-        valuePropositions: [
-          `Konzultace zdarma před každým ošetřením`,
-          `Certifikovaní specialisté s lety zkušeností`,
-          `Prémiové produkty šetrné k pleti`,
-          `Věrnostní program: každé 5. ošetření zdarma`,
-        ],
-      },
-    },
-    zdravotnictvi: {
-      awareness: {
-        headline: `${data.businessName} – vaše zdraví je naše priorita`,
-        socialPost: `❤️ Staráte se o své zdraví? ${data.businessName} nabízí ${data.description} pro ${data.targetAudience}. Profesionální péče, moderní přístupy, lidský přístup. Objednejte se! #zdraví #péče`,
-        adCopy: [
-          `${data.businessName}: Komplexní zdravotní péče pro celou rodinu`,
-          `Certifikovaní odborníci | Krátké čekací doby | Online objednávky`,
-          `Prevence i léčba | Individuální přístup`,
-        ],
-      },
-      interest: {
-        emailSubject: `Váš zdravotní průvodce od ${data.businessName}`,
-        emailBody: `Dobrý den,\n\nV ${data.businessName} se staráme o to, aby ${data.description} bylo dostupné pro každého.\n\nNaše služby zahrnují:\n• Preventivní prohlídky\n• Specializovaná vyšetření\n• Online konzultace z pohodlí domova\n\nObjednejte se online nebo nás kontaktujte pro více informací.\n\nTým ${data.businessName}`,
-        blogTopics: [
-          `Preventivní prohlídky: Proč je nepodceňovat`,
-          `Jak si vybrat správného specialistu ve vašem okolí`,
-          `Moderní přístupy k ${data.description}: Co je nového`,
-        ],
-      },
-      conversion: {
-        cta: `Objednat se online – ihned`,
-        landingHeadline: `${data.businessName} – profesionální ${data.description}`,
-        valuePropositions: [
-          `Online objednávky 24/7`,
-          `Krátké čekací doby`,
-          `Kompletní zdravotní dokumentace online`,
-          `Smluvní pojišťovny: VZP, OZP, ZPMV a další`,
-        ],
-      },
-    },
-  };
-
-  return templates[data.category];
-}
-
-// ─── Loading messages ─────────────────────────────────────────────────────────
-
-const LOADING_STEPS = [
-  'Analyzuji váš byznys...',
-  'Identifikuji cílovou skupinu...',
-  'Sestavuji fázi povědomí...',
-  'Generuji obsah pro zájem...',
-  'Optimalizuji konverzní texty...',
-  'Finalizuji váš funnel...',
-];
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Badge({ children, color }: { children: React.ReactNode; color: string }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${color}`}>
-      {children}
-    </span>
-  );
-}
+const STEP_INDEX: Record<Step, number> = { input: 0, brand: 1, funnel: 2, materials: 3 };
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <button
-      onClick={handleCopy}
-      className="text-xs text-white/40 hover:text-white/70 transition-colors duration-150 flex items-center gap-1"
+      onClick={async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="text-xs text-white/40 hover:text-violet-400 transition-colors flex items-center gap-1"
     >
-      {copied ? (
-        <><span>✓</span> Zkopírováno</>
-      ) : (
-        <><span>⌘</span> Kopírovat</>
-      )}
+      {copied ? '✓ Zkopírováno' : '⌘ Kopírovat'}
     </button>
   );
 }
 
-function TextBlock({ label, value }: { label: string; value: string }) {
+function LoadingOverlay({ message }: { message: string }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-white/50 uppercase tracking-wider">{label}</span>
-        <CopyButton text={value} />
-      </div>
-      <p className="text-sm text-white/80 bg-white/5 rounded-lg px-3 py-2.5 whitespace-pre-line leading-relaxed">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function ListBlock({ label, items }: { label: string; items: string[] }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-white/50 uppercase tracking-wider">{label}</span>
-      <ul className="flex flex-col gap-1.5">
-        {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-2 text-sm text-white/80">
-            <span className="mt-0.5 text-violet-400 shrink-0">▸</span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function AwarenessCard({ data }: { data: FunnelContent['awareness'] }) {
-  return (
-    <div className="funnel-card" style={{ animationDelay: '0ms' }}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center text-lg">
-            👁️
-          </div>
-          <div>
-            <h3 className="font-bold text-white">Povědomí</h3>
-            <p className="text-xs text-white/40">Top of Funnel · TOFU</p>
-          </div>
+    <div className="fixed inset-0 bg-[#050811]/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="glass-card p-10 flex flex-col items-center gap-6 max-w-sm w-full text-center">
+        <div className="relative w-16 h-16">
+          <div className="absolute inset-0 rounded-full border-2 border-violet-500/20" />
+          <div className="absolute inset-0 rounded-full border-2 border-t-violet-500 border-r-purple-500 border-b-transparent border-l-transparent animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center text-2xl">⚡</div>
         </div>
-        <Badge color="bg-blue-500/15 text-blue-300 border border-blue-500/20">Fáze 1</Badge>
-      </div>
-      <div className="h-px bg-white/5" />
-      <TextBlock label="Hlavní nadpis" value={data.headline} />
-      <TextBlock label="Příspěvek na sociální síti" value={data.socialPost} />
-      <ListBlock label="Reklamní texty (3 varianty)" items={data.adCopy} />
-    </div>
-  );
-}
-
-function InterestCard({ data }: { data: FunnelContent['interest'] }) {
-  return (
-    <div className="funnel-card" style={{ animationDelay: '100ms' }}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/20 flex items-center justify-center text-lg">
-            💡
-          </div>
-          <div>
-            <h3 className="font-bold text-white">Zájem</h3>
-            <p className="text-xs text-white/40">Middle of Funnel · MOFU</p>
-          </div>
-        </div>
-        <Badge color="bg-violet-500/15 text-violet-300 border border-violet-500/20">Fáze 2</Badge>
-      </div>
-      <div className="h-px bg-white/5" />
-      <TextBlock label="Předmět e-mailu" value={data.emailSubject} />
-      <TextBlock label="E-mailový text" value={data.emailBody} />
-      <ListBlock label="Témata pro blog / obsah" items={data.blogTopics} />
-    </div>
-  );
-}
-
-function ConversionCard({ data }: { data: FunnelContent['conversion'] }) {
-  return (
-    <div className="funnel-card" style={{ animationDelay: '200ms' }}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-green-500/20 border border-emerald-500/20 flex items-center justify-center text-lg">
-            🎯
-          </div>
-          <div>
-            <h3 className="font-bold text-white">Konverze</h3>
-            <p className="text-xs text-white/40">Bottom of Funnel · BOFU</p>
-          </div>
-        </div>
-        <Badge color="bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">Fáze 3</Badge>
-      </div>
-      <div className="h-px bg-white/5" />
-      <TextBlock label="Nadpis landing page" value={data.landingHeadline} />
-      <div className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-white/50 uppercase tracking-wider">Hlavní CTA tlačítko</span>
-        <div className="inline-flex">
-          <span className="bg-gradient-to-r from-emerald-600 to-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-900/40">
-            {data.cta}
-          </span>
+        <div>
+          <p className="text-white font-semibold text-lg">{message}</p>
+          <p className="text-white/40 text-sm mt-1">AI zpracovává data...</p>
         </div>
       </div>
-      <ListBlock label="Hodnoty pro zákazníka" items={data.valuePropositions} />
     </div>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+function StepIndicator({ current }: { current: Step }) {
+  const idx = STEP_INDEX[current];
+  return (
+    <div className="flex items-center justify-center gap-1 mb-8 flex-wrap">
+      {STEPS.map((s, i) => (
+        <div key={s.id} className="flex items-center">
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            i < idx ? 'bg-violet-500/20 text-violet-400' : i === idx ? 'bg-violet-500 text-white' : 'bg-white/5 text-white/30'
+          }`}>
+            <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold bg-white/10">
+              {i < idx ? '✓' : i + 1}
+            </span>
+            {s.label}
+          </div>
+          {i < STEPS.length - 1 && <span className={`mx-1 text-xs ${i < idx ? 'text-violet-400/60' : 'text-white/20'}`}>→</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Home() {
-  const [appState, setAppState] = useState<AppState>('form');
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [formData, setFormData] = useState<FunnelFormData>({
-    businessName: '',
-    category: 'eshop',
-    description: '',
-    targetAudience: '',
-  });
-  const [content, setContent] = useState<FunnelContent | null>(null);
+  const [step, setStep] = useState<Step>('input');
+  const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<MaterialTab>('social');
+  const [clientName, setClientName] = useState('');
+  const [businessDesc, setBusinessDesc] = useState('');
+  const [brand, setBrand] = useState<BrandAnalysis | null>(null);
+  const [funnel, setFunnel] = useState<FunnelStructure | null>(null);
+  const [materials, setMaterials] = useState<MarketingMaterials | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function callApi<T>(url: string, body: object, msg: string): Promise<T> {
+    setLoading(true); setLoadingMsg(msg); setError(null);
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? 'Neznámá chyba');
+    return data as T;
+  }
+
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    setAppState('loading');
-    setLoadingStep(0);
+    try {
+      const data = await callApi<BrandAnalysis>('/api/analyze', { clientName, businessDescription: businessDesc }, 'Analyzuji značku...');
+      setBrand(data); setStep('brand');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Chyba'); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    if (appState !== 'loading') return;
+  const handleFunnel = async () => {
+    try {
+      const data = await callApi<FunnelStructure>('/api/funnel', { clientName, businessDescription: businessDesc, brand }, 'Navrhuji funnel strukturu...');
+      setFunnel(data); setStep('funnel');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Chyba'); }
+    finally { setLoading(false); }
+  };
 
-    if (loadingStep < LOADING_STEPS.length - 1) {
-      const timer = setTimeout(() => setLoadingStep((s) => s + 1), 500);
-      return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => {
-        setContent(generateContent(formData));
-        setAppState('results');
-      }, 600);
-      return () => clearTimeout(timer);
-    }
-  }, [appState, loadingStep, formData]);
+  const handleMaterials = async () => {
+    try {
+      const data = await callApi<MarketingMaterials>('/api/materials', { clientName, businessDescription: businessDesc, brand, funnel }, 'Generuji marketingové materiály...');
+      setMaterials(data); setStep('materials'); setActiveTab('social');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Chyba'); }
+    finally { setLoading(false); }
+  };
 
   const handleReset = () => {
-    setAppState('form');
-    setContent(null);
-    setLoadingStep(0);
+    setStep('input'); setBrand(null); setFunnel(null); setMaterials(null);
+    setClientName(''); setBusinessDesc(''); setError(null);
   };
 
-  const categoryLabel = CATEGORIES.find((c) => c.value === formData.category)?.label ?? '';
-
   return (
-    <main className="min-h-screen bg-[#050811] relative overflow-hidden">
-      {/* Background glow */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/8 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-fuchsia-600/8 rounded-full blur-3xl" />
+    <main className="min-h-screen bg-[#050811] relative">
+      {loading && <LoadingOverlay message={loadingMsg} />}
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/8 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -right-40 w-96 h-96 bg-purple-600/6 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-12">
-        {/* Header */}
-        <header className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 rounded-full px-4 py-1.5 text-xs font-medium text-violet-300 mb-6">
+      <div className="relative z-10 max-w-3xl mx-auto px-4 py-10">
+        <header className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 rounded-full px-4 py-1.5 text-xs font-medium text-violet-300 mb-4">
             <span className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-pulse" />
-            AI Marketing Funnel Generator
+            Vibe Business Platform
           </div>
-          <h1 className="text-4xl font-bold text-white mb-3 leading-tight">
-            Vytvořte marketingový{' '}
-            <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-              funnel
-            </span>
-            {' '}za minutu
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Marketing{' '}
+            <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">AI Stratég</span>
           </h1>
-          <p className="text-white/50 text-lg">
-            Zadejte základní informace o vašem byznysu a získejte kompletní obsah pro všechny 3 fáze funnelu.
-          </p>
+          <p className="text-white/40 text-sm">Kompletní brand &amp; funnel analýza poháněná AI</p>
         </header>
 
-        {/* ── FORM STATE ── */}
-        {appState === 'form' && (
-          <form onSubmit={handleSubmit} className="glass-card p-8 flex flex-col gap-6 animate-fade-in">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-white/70">Název firmy / značky</label>
-              <input
-                className="input-field"
-                placeholder="např. Kavárna U Modrého koně"
-                value={formData.businessName}
-                onChange={(e) => setFormData((f) => ({ ...f, businessName: e.target.value }))}
-                required
-              />
-            </div>
+        <StepIndicator current={step} />
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-white/70">Kategorie byznysu</label>
-              <div className="grid grid-cols-2 gap-2">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat.value}
-                    type="button"
-                    onClick={() => setFormData((f) => ({ ...f, category: cat.value }))}
-                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all duration-150 text-left ${
-                      formData.category === cat.value
-                        ? 'bg-violet-600/20 border-violet-500/50 text-white'
-                        : 'bg-white/[0.03] border-white/[0.08] text-white/60 hover:bg-white/[0.06] hover:border-white/[0.15]'
-                    }`}
-                  >
-                    <span className="text-base">{cat.icon}</span>
-                    <span className="leading-snug">{cat.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+        {error && (
+          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+            ⚠️ {error}
+          </div>
+        )}
 
+        {/* STEP 1 – INPUT */}
+        {step === 'input' && (
+          <form onSubmit={handleAnalyze} className="glass-card p-8 flex flex-col gap-6 animate-fade-in">
+            <div>
+              <h2 className="text-xl font-bold text-white mb-1">Nový klient</h2>
+              <p className="text-white/40 text-sm">Zadejte informace o byznysu klienta</p>
+            </div>
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-white/70">Co nabízíte? (produkt / služba)</label>
+              <label className="text-sm font-medium text-white/70">Název klienta / projektu</label>
+              <input className="input-field" placeholder="např. Kavárna U Modrého koně" value={clientName} onChange={(e) => setClientName(e.target.value)} required />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-white/70">Popis byznysu / nápadu</label>
               <textarea
-                className="input-field resize-none"
-                rows={3}
-                placeholder="např. prémiovou kávu a domácí dezerty v útulné atmosféře"
-                value={formData.description}
-                onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
-                required
+                className="input-field resize-none" rows={7}
+                placeholder="Popište co nejdetailněji byznys klienta: co prodává, pro koho, jaký problém řeší, region / online, cenová hladina, co ho odlišuje od konkurence..."
+                value={businessDesc} onChange={(e) => setBusinessDesc(e.target.value)} required
               />
             </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-white/70">Cílová skupina</label>
-              <input
-                className="input-field"
-                placeholder="např. mladé rodiny a studenti v Praze"
-                value={formData.targetAudience}
-                onChange={(e) => setFormData((f) => ({ ...f, targetAudience: e.target.value }))}
-                required
-              />
-            </div>
-
-            <button type="submit" className="btn-primary w-full text-center mt-2">
-              Vygenerovat funnel  →
-            </button>
+            <button type="submit" disabled={loading} className="btn-primary w-full">Analyzovat značku →</button>
           </form>
         )}
 
-        {/* ── LOADING STATE ── */}
-        {appState === 'loading' && (
-          <div className="glass-card p-12 flex flex-col items-center gap-8 animate-fade-in">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full border-2 border-violet-500/20 flex items-center justify-center">
-                <div className="w-14 h-14 rounded-full border-2 border-t-violet-500 border-r-purple-500 border-b-transparent border-l-transparent animate-spin" />
+        {/* STEP 2 – BRAND */}
+        {step === 'brand' && brand && (
+          <div className="flex flex-col gap-5 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div><h2 className="text-xl font-bold text-white">{clientName}</h2><p className="text-sm text-white/40">Brand analýza</p></div>
+              <button onClick={() => setStep('input')} className="text-sm text-white/40 hover:text-white transition-colors">← Zpět</button>
+            </div>
+            <div className="glass-card p-6">
+              <div className="flex items-center gap-2 mb-4"><span className="text-xl">🎯</span><h3 className="font-bold text-white">Tone of Voice</h3></div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {brand.toneOfVoice.keywords.map((kw) => (
+                  <span key={kw} className="bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-semibold px-3 py-1 rounded-full">{kw}</span>
+                ))}
               </div>
-              <div className="absolute inset-0 flex items-center justify-center text-2xl">⚡</div>
+              <p className="text-white/70 text-sm leading-relaxed">{brand.toneOfVoice.description}</p>
             </div>
-
-            <div className="text-center">
-              <p className="text-white font-semibold text-lg mb-1">Generuji váš funnel</p>
-              <p className="text-white/50 text-sm">
-                {LOADING_STEPS[loadingStep]}
-              </p>
+            <div className="glass-card p-6">
+              <div className="flex items-center gap-2 mb-4"><span className="text-xl">⚡</span><h3 className="font-bold text-white">Marketingový úhel</h3></div>
+              <p className="text-white font-semibold mb-2">{brand.marketingAngle.usp}</p>
+              <p className="text-white/70 text-sm leading-relaxed">{brand.marketingAngle.communication}</p>
             </div>
-
-            <div className="w-full flex flex-col gap-2">
-              {LOADING_STEPS.map((step, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 transition-all duration-300 ${
-                    i < loadingStep
-                      ? 'bg-violet-500 text-white'
-                      : i === loadingStep
-                      ? 'bg-violet-500/30 border border-violet-500/60 text-violet-300'
-                      : 'bg-white/5 border border-white/10 text-white/20'
-                  }`}>
-                    {i < loadingStep ? '✓' : i + 1}
+            <div className="glass-card p-6">
+              <div className="flex items-center gap-2 mb-4"><span className="text-xl">👤</span><h3 className="font-bold text-white">Ideální persona</h3></div>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                {[['Jméno', brand.persona.name], ['Věk', brand.persona.age]].map(([label, val]) => (
+                  <div key={label}>
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-white text-sm font-medium">{val}</p>
                   </div>
-                  <span className={`text-sm transition-colors duration-300 ${
-                    i <= loadingStep ? 'text-white/70' : 'text-white/25'
-                  }`}>
-                    {step}
-                  </span>
+                ))}
+                <div className="col-span-2">
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Provolání</p>
+                  <p className="text-white text-sm font-medium">{brand.persona.profession}</p>
                 </div>
-              ))}
+                <div className="col-span-2">
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Hlavní problém</p>
+                  <p className="text-white/80 text-sm">{brand.persona.painPoint}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Co hledá</p>
+                  <p className="text-white/80 text-sm">{brand.persona.desires}</p>
+                </div>
+              </div>
             </div>
+            <button onClick={handleFunnel} disabled={loading} className="btn-primary w-full">Schválit a navrhnout funnel →</button>
           </div>
         )}
 
-        {/* ── RESULTS STATE ── */}
-        {appState === 'results' && content && (
-          <div className="flex flex-col gap-6 animate-fade-in">
+        {/* STEP 3 – FUNNEL */}
+        {step === 'funnel' && funnel && (
+          <div className="flex flex-col gap-5 animate-fade-in">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-white">{formData.businessName}</h2>
-                <p className="text-sm text-white/40">
-                  {CATEGORIES.find((c) => c.value === formData.category)?.icon}{' '}
-                  {categoryLabel}
-                </p>
+              <div><h2 className="text-xl font-bold text-white">{clientName}</h2><p className="text-sm text-white/40">Funnel struktura</p></div>
+              <button onClick={() => setStep('brand')} className="text-sm text-white/40 hover:text-white transition-colors">← Zpět</button>
+            </div>
+            <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">👁️</span>
+                  <span className="text-xs font-semibold text-blue-300 bg-blue-500/15 px-2 py-0.5 rounded-full border border-blue-500/20">TOFU – Povědomí</span>
+                </div>
+                <span className="text-xs text-white/30 bg-white/5 px-2 py-1 rounded-lg">{funnel.tofu.format}</span>
               </div>
-              <button
-                onClick={handleReset}
-                className="text-sm text-white/50 hover:text-white border border-white/10 hover:border-white/25 px-4 py-2 rounded-xl transition-all duration-150"
-              >
-                ← Nový funnel
-              </button>
+              <h3 className="font-bold text-white mb-2">{funnel.tofu.title}</h3>
+              <p className="text-white/70 text-sm leading-relaxed">{funnel.tofu.description}</p>
+            </div>
+            <div className="flex justify-center text-white/30 text-xl">↓</div>
+            <div className="glass-card p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">💡</span>
+                <span className="text-xs font-semibold text-violet-300 bg-violet-500/15 px-2 py-0.5 rounded-full border border-violet-500/20">MOFU – Zájem</span>
+              </div>
+              <ul className="flex flex-col gap-2 mb-3">
+                {funnel.mofu.sequence.map((s, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-white/70"><span className="text-violet-400 shrink-0 mt-0.5">▸</span>{s}</li>
+                ))}
+              </ul>
+              <p className="text-xs text-white/40 italic">Cíl: {funnel.mofu.goal}</p>
+            </div>
+            <div className="flex justify-center text-white/30 text-xl">↓</div>
+            <div className="glass-card p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xl">🎯</span>
+                <span className="text-xs font-semibold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">BOFU – Konverze</span>
+              </div>
+              <div className="flex flex-col gap-3">
+                {[['CTA', funnel.bofu.cta], ['Nabídka', funnel.bofu.offer], ['Urgence / Důvěra', funnel.bofu.urgency]].map(([label, val]) => (
+                  <div key={label}>
+                    <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-white/80 text-sm">{val}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button onClick={handleMaterials} disabled={loading} className="btn-primary w-full">Generovat marketingové materiály →</button>
+          </div>
+        )}
+
+        {/* STEP 4 – MATERIALS */}
+        {step === 'materials' && materials && (
+          <div className="flex flex-col gap-5 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div><h2 className="text-xl font-bold text-white">{clientName}</h2><p className="text-sm text-white/40">Marketingové materiály</p></div>
+              <button onClick={() => setStep('funnel')} className="text-sm text-white/40 hover:text-white transition-colors">← Zpět</button>
+            </div>
+            <div className="flex gap-1 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
+              {(['social', 'email', 'landing', 'ads'] as MaterialTab[]).map((tab) => {
+                const labels: Record<MaterialTab, string> = { social: '📱 Social', email: '📧 E-mail', landing: '🖥️ Landing', ads: '📢 Reklamy' };
+                return (
+                  <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === tab ? 'bg-violet-500/25 text-violet-300 border border-violet-500/30' : 'text-white/40 hover:text-white/70'
+                  }`}>{labels[tab]}</button>
+                );
+              })}
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-white/30">
-              <span className="w-full h-px bg-gradient-to-r from-blue-500/40 via-violet-500/40 to-emerald-500/40" />
-              <span className="shrink-0 font-medium">3 fáze funnelu</span>
-              <span className="w-full h-px bg-gradient-to-l from-blue-500/40 via-violet-500/40 to-emerald-500/40" />
-            </div>
+            {activeTab === 'social' && (
+              <div className="flex flex-col gap-4">
+                {materials.socialPosts.map((post, i) => (
+                  <div key={i} className="glass-card p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-semibold text-white/50">Post {i + 1}</span>
+                      <CopyButton text={post} />
+                    </div>
+                    <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">{post}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <AwarenessCard data={content.awareness} />
-            <InterestCard data={content.interest} />
-            <ConversionCard data={content.conversion} />
+            {activeTab === 'email' && (
+              <div className="glass-card p-6 flex flex-col gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-white/40 uppercase tracking-wider">Předmět</p>
+                    <CopyButton text={materials.emailSequence.subject} />
+                  </div>
+                  <p className="text-white font-semibold">{materials.emailSequence.subject}</p>
+                </div>
+                <div className="h-px bg-white/5" />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-white/40 uppercase tracking-wider">Text e-mailu</p>
+                    <CopyButton text={materials.emailSequence.body} />
+                  </div>
+                  <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line">{materials.emailSequence.body}</p>
+                </div>
+              </div>
+            )}
 
-            <div className="flex justify-center pt-2">
-              <button onClick={handleReset} className="btn-primary">
-                Vytvořit další funnel
-              </button>
-            </div>
+            {activeTab === 'landing' && (
+              <div className="glass-card p-6 flex flex-col gap-5">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-white/40 uppercase tracking-wider">Hlavní nadpis</p>
+                    <CopyButton text={materials.landingPage.headline} />
+                  </div>
+                  <p className="text-2xl font-bold text-white">{materials.landingPage.headline}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Podnadpis</p>
+                  <p className="text-white/70">{materials.landingPage.subheadline}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-2">CTA tlačítko</p>
+                  <span className="inline-block bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl">{materials.landingPage.cta}</span>
+                </div>
+                <div>
+                  <p className="text-xs text-white/40 uppercase tracking-wider mb-2">Benefity</p>
+                  <ul className="flex flex-col gap-2">
+                    {materials.landingPage.benefits.map((b, i) => (
+                      <li key={i} className="flex items-center gap-2 text-sm text-white/80"><span className="text-emerald-400">✓</span>{b}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'ads' && (
+              <div className="flex flex-col gap-4">
+                {materials.adCopy.map((ad, i) => (
+                  <div key={i} className="glass-card p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-semibold text-white/50">Reklama {i + 1}</span>
+                      <CopyButton text={ad} />
+                    </div>
+                    <p className="text-sm text-white/80 leading-relaxed">{ad}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button onClick={handleReset} className="btn-primary w-full mt-2">+ Nový klient</button>
           </div>
         )}
       </div>

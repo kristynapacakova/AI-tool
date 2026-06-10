@@ -336,17 +336,9 @@ export default function Home() {
                 {([['Jméno', brand.persona.name], ['Věk', brand.persona.age]] as [string,string][]).map(([l, v]) => (
                   <div key={l}><p className="text-xs text-white/40 uppercase tracking-wider mb-1">{l}</p><p className="text-white text-sm font-medium">{v}</p></div>
                 ))}
-                {(['Povolání', brand.persona.profession], ['Hlavní problém', brand.persona.painPoint], ['Co hledá', brand.persona.desires] as unknown as [string,string][]).map !== undefined &&
-                  (['Povolání', 'Hlavní problém', 'Co hledá'] as const).map((label) => {
-                    const vals: Record<string, string> = { 'Povolání': brand.persona.profession, 'Hlavní problém': brand.persona.painPoint, 'Co hledá': brand.persona.desires };
-                    return (
-                      <div key={label} className="col-span-2">
-                        <p className="text-xs text-white/40 uppercase tracking-wider mb-1">{label}</p>
-                        <p className="text-white/80 text-sm">{vals[label]}</p>
-                      </div>
-                    );
-                  })
-                }
+                {([['Povolání', brand.persona.profession], ['Hlavní problém', brand.persona.painPoint], ['Co hledá', brand.persona.desires]] as [string,string][]).map(([l, v]) => (
+                  <div key={l} className="col-span-2"><p className="text-xs text-white/40 uppercase tracking-wider mb-1">{l}</p><p className="text-white/80 text-sm">{v}</p></div>
+                ))}
               </div>
             </div>
             <button onClick={handleFunnel} className="btn-primary w-full">Schválit a navrhnout funnel →</button>

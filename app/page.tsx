@@ -20,7 +20,7 @@ interface FunnelStructure {
 }
 
 interface MarketingMaterials {
-  socialPosts: { caption: string; image: string }[];
+  socialPosts: { caption: string; icon: string; gradient: string; tall: boolean }[];
   emailSequence: { subject: string; body: string };
   landingPage: { headline: string; subheadline: string; cta: string; benefits: string[] };
   adCopy: string[];
@@ -72,8 +72,13 @@ function buildColors(seed: number): string[] {
   ];
 }
 
-function buildImages(seed: string, count: number): string[] {
-  return Array.from({ length: count }, (_, i) => `https://picsum.photos/seed/${seed}-${i}/400/400`);
+function buildMoodTiles(colors: string[], count: number): string[] {
+  const angles = [135, 45, 110, 200, 70];
+  return Array.from({ length: count }, (_, i) => {
+    const c1 = colors[i % colors.length];
+    const c2 = colors[(i + 2) % colors.length];
+    return `linear-gradient(${angles[i % angles.length]}deg, ${c1}, ${c2})`;
+  });
 }
 
 function getInitials(name: string): string {
@@ -87,11 +92,12 @@ function buildBrand(name: string, url: string): BrandAnalysis {
   const domain = extractDomain(url);
   const n = name || domain;
   const seed = hashString(domain || n);
+  const colors = buildColors(seed);
   return {
     extractedClientName: n,
-    colors: buildColors(seed),
+    colors,
     typography: FONT_PAIRS[seed % FONT_PAIRS.length],
-    images: buildImages(domain || n, 4),
+    images: buildMoodTiles(colors, 4),
     summary: `${n} je česká firma nabízející kvalitní produkty a služby. Zaměřuje se na budování dlouhodobých vztahů se zákazníky a důraz klade na spolehlivé výsledky.`,
     toneOfVoice: {
       keywords: ['důvěryhodný', 'profesionální', 'přátelský'],
@@ -136,7 +142,8 @@ function buildFunnel(name: string): FunnelStructure {
   };
 }
 
-function buildMaterials(name: string): MarketingMaterials {
+function buildMaterials(name: string, colors: string[]): MarketingMaterials {
+  const icons = ['🎯', '❓', '🤝', '📊'];
   const captions = [
     `🎯 Víte, co odlišuje úspěšné firmy od průměrných?\n\nNe vždy je to produkt nebo cena. Většinou je to SPOLEHLIVOST.\n\nV ${name} jsme postavili celý byznys na jednom slibu: uděláme to správně na první pokus.\n\nA naši zákazníci to oceňují. 97 % z nich se vrací.\n\n👇 Zjištěte, jak to děláme – odkaz v biu.\n\n#spolehlivost #kvalita #business #česko`,
     `❓ Kolik vás stojí špatné rozhodnutí?\n\nSpoluprobírali jsme firmy, které to zjístily na vlastní kůži – a pak přišly za námi.\n\nNaše řešení:\n✅ Rychlá implementace\n✅ Žádné skryté poplatky\n✅ Výsledky, které vidíte\n\nNapište nám – první konzultace je zdarma.\n\n#podnikání #efektivita #výsledky`,
@@ -146,7 +153,9 @@ function buildMaterials(name: string): MarketingMaterials {
   return {
     socialPosts: captions.map((caption, i) => ({
       caption,
-      image: `https://picsum.photos/seed/${name}-post-${i}/600/${i % 2 === 0 ? 750 : 500}`,
+      icon: icons[i % icons.length],
+      gradient: `linear-gradient(${135 + i * 60}deg, ${colors[i % colors.length]}, ${colors[(i + 1) % colors.length]})`,
+      tall: i % 2 === 0,
     })),
     emailSequence: {
       subject: `Vítáme vás – tady je váš průvodce od ${name}`,
@@ -265,7 +274,7 @@ export default function Home() {
   const handleMaterials = async () => {
     setLoading(true); setLoadingMsg('Generuji marketingové materiály...');
     await sleep(2200);
-    setMaterials(buildMaterials(displayName));
+    setMaterials(buildMaterials(displayName, brand?.colors ?? buildColors(hashString(displayName))));
     setLoading(false); setStep('materials'); setActiveTab('social');
   };
 
@@ -387,10 +396,10 @@ export default function Home() {
                   <p className="text-[10px] text-white/40 uppercase tracking-wider">Čeština</p>
                 </div>
               </div>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Vizuální inspirace</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Vizuální nálada</p>
               <div className="grid grid-cols-4 gap-2">
-                {brand.images.map((img, i) => (
-                  <img key={i} src={img} alt="" className="w-full aspect-square object-cover rounded-lg" />
+                {brand.images.map((bg, i) => (
+                  <div key={i} className="w-full aspect-square rounded-lg" style={{ background: bg }} />
                 ))}
               </div>
             </div>
@@ -476,7 +485,9 @@ export default function Home() {
               <div className="columns-2 sm:columns-3 gap-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
                 {materials.socialPosts.map((p, i) => (
                   <div key={i} className="glass-card overflow-hidden">
-                    <img src={p.image} alt="" className="w-full object-cover" />
+                    <div className={`w-full flex items-center justify-center text-4xl ${p.tall ? 'aspect-[4/5]' : 'aspect-[4/3]'}`} style={{ background: p.gradient }}>
+                      {p.icon}
+                    </div>
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-2"><span className="text-xs font-semibold text-white/50">Post {i+1}</span><CopyButton text={p.caption} /></div>
                       <p className="text-sm text-white/80 leading-relaxed whitespace-pre-line line-clamp-6">{p.caption}</p>
